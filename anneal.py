@@ -5,11 +5,13 @@ import matplotlib.pyplot as plt
 
 
 class SimAnneal(object):
-    def __init__(self, coords, T=-1, alpha=-1, stopping_T=-1, stopping_iter=-1):
+    def __init__(self, coords, dist, T=-1, alpha=-1, stopping_T=-1, stopping_iter=-1, self_enclosing=-1):
+        self.dist = dist
         self.coords = coords
-        self.N = len(coords)
+        self.N = len(dist)
+        self.self_enclosing = 1 if self_enclosing == -1 else 0
         self.T = math.sqrt(self.N) if T == -1 else T
-        self.T_save = self.T  # save inital T to reset if batch annealing is used
+        self.T_save = self.T
         self.alpha = 0.995 if alpha == -1 else alpha
         self.stopping_temperature = 1e-8 if stopping_T == -1 else stopping_T
         self.stopping_iter = 100000 if stopping_iter == -1 else stopping_iter
@@ -31,7 +33,7 @@ class SimAnneal(object):
         free_nodes = set(self.nodes)
         free_nodes.remove(cur_node)
         while free_nodes:
-            next_node = min(free_nodes, key=lambda x: self.dist(cur_node, x))  # nearest neighbour
+            next_node = min(free_nodes, key=lambda x: self.dist[cur_node][x])  # nearest neighbour
             free_nodes.remove(next_node)
             solution.append(next_node)
             cur_node = next_node
@@ -43,20 +45,14 @@ class SimAnneal(object):
         self.fitness_list.append(cur_fit)
         return solution, cur_fit
 
-    def dist(self, node_0, node_1):
-        """
-        Euclidean distance between two nodes.
-        """
-        coord_0, coord_1 = self.coords[node_0], self.coords[node_1]
-        return math.sqrt((coord_0[0] - coord_1[0]) ** 2 + (coord_0[1] - coord_1[1]) ** 2)
-
     def fitness(self, solution):
         """
         Total distance of the current solution path.
         """
         cur_fit = 0
         for i in range(self.N):
-            cur_fit += self.dist(solution[i % self.N], solution[(i + 1) % self.N])
+            cur_fit += self.dist[solution[i % self.N]][solution[(i + 1) % self.N]]
+        cur_fit += self.dist[solution[self.N%self.N]][solution[1%self.N]]
         return cur_fit
 
     def p_accept(self, candidate_fitness):
@@ -87,7 +83,7 @@ class SimAnneal(object):
         # Initialize with the greedy solution.
         self.cur_solution, self.cur_fitness = self.initial_solution()
 
-        print("Starting annealing.")
+        #print("Starting annealing.")
         while self.T >= self.stopping_temperature and self.iteration < self.stopping_iter:
             candidate = list(self.cur_solution)
             l = random.randint(2, self.N - 1)
@@ -99,16 +95,16 @@ class SimAnneal(object):
 
             self.fitness_list.append(self.cur_fitness)
 
-        print("Best fitness obtained: ", self.best_fitness)
+        #print("Best fitness obtained: ", self.best_fitness)
         improvement = 100 * (self.fitness_list[0] - self.best_fitness) / (self.fitness_list[0])
-        print(f"Improvement over greedy heuristic: {improvement : .2f}%")
+        #print(f"Improvement over greedy heuristic: {improvement : .2f}%")
 
     def batch_anneal(self, times=10):
         """
         Execute simulated annealing algorithm `times` times, with random initial solutions.
         """
         for i in range(1, times + 1):
-            print(f"Iteration {i}/{times} -------------------------------")
+            #print(f"Iteration {i}/{times} -------------------------------")
             self.T = self.T_save
             self.iteration = 1
             self.cur_solution, self.cur_fitness = self.initial_solution()
